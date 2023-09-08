@@ -454,6 +454,7 @@
 #' 
 stan_surv <- function(formula, 
                       data, 
+                      weights,
                       basehaz          = "ms",
                       basehaz_ops,
                       qnodes           = 15, 
@@ -728,6 +729,12 @@ stan_surv <- function(formula,
     x_icens <- x_centred[idx_cpts[4,1]:idx_cpts[4,2], , drop = FALSE]
     x_delay <- x_centred[idx_cpts[6,1]:idx_cpts[6,2], , drop = FALSE]
     
+    event_weights <- weights[idx_cpts[1,1]:idx_cpts[1,2]]
+    lcens_weights <- weights[idx_cpts[2,1]:idx_cpts[2,2]]
+    rcens_weights <- weights[idx_cpts[3,1]:idx_cpts[3,2]]
+    icens_weights <- weights[idx_cpts[4,1]:idx_cpts[4,2]]
+    delay_weights <- weights[idx_cpts[6,1]:idx_cpts[6,2]]
+    
   } else {
     
     # time-fixed predictor matrices, with quadrature
@@ -739,7 +746,13 @@ stan_surv <- function(formula,
     x_qpts_rcens <- x_centred[idx_cpts[4,1]:idx_cpts[4,2], , drop = FALSE]
     x_qpts_icens <- x_centred[idx_cpts[5,1]:idx_cpts[5,2], , drop = FALSE]
     x_qpts_delay <- x_centred[idx_cpts[7,1]:idx_cpts[7,2], , drop = FALSE]
- 
+    
+    Nevent_weights <- weights[idx_cpts[1,1]:idx_cpts[1,2]]
+    qevent_weights <- weights[idx_cpts[2,1]:idx_cpts[2,2]]
+    qlcens_weights <- weights[idx_cpts[3,1]:idx_cpts[3,2]]
+    qrcens_weights <- weights[idx_cpts[4,1]:idx_cpts[4,2]]
+    qicens_weights <- weights[idx_cpts[5,1]:idx_cpts[5,2]]
+    qdelay_weights <- weights[idx_cpts[7,1]:idx_cpts[7,2]]
   }
   
   #----- time-varying predictor matrices
@@ -874,6 +887,12 @@ stan_surv <- function(formula,
     x_rcens      = if (has_quadrature) matrix(0,0,K) else x_rcens,
     x_icens      = if (has_quadrature) matrix(0,0,K) else x_icens,
     x_delay      = if (has_quadrature) matrix(0,0,K) else x_delay,
+    
+    event_weights = if (is.null(weights) | has_quadrature) rep(1,nevent) else event_weights,
+    lcens_weights = if (is.null(weights) | has_quadrature) rep(1,nlcens) else lcens_weights,
+    rcens_weights = if (is.null(weights) | has_quadrature) rep(1,nrcens) else rcens_weights,
+    icens_weights = if (is.null(weights) | has_quadrature) rep(1,nicens) else icens_weights,
+    delay_weights = if (is.null(weights) | has_quadrature) rep(1,ndelay) else delay_weights,
 
     w_event      = if (has_quadrature || !has_bars || nevent == 0) double(0) else parts_event$w,
     w_lcens      = if (has_quadrature || !has_bars || nlcens == 0) double(0) else parts_lcens$w,
@@ -942,6 +961,13 @@ stan_surv <- function(formula,
     x_qpts_rcens = if (!has_quadrature) matrix(0,0,K) else x_qpts_rcens,
     x_qpts_icens = if (!has_quadrature) matrix(0,0,K) else x_qpts_icens,
     x_qpts_delay = if (!has_quadrature) matrix(0,0,K) else x_qpts_delay,
+    
+    Nevent_weights = if (is.null(weights) | !has_quadrature) rep(1,Nevent) else Nevent_weights,
+    qevent_weights = if (is.null(weights) | !has_quadrature) rep(1,qevent) else qevent_weights,
+    qlcens_weights = if (is.null(weights) | !has_quadrature) rep(1,qlcens) else qlcens_weights,
+    qrcens_weights = if (is.null(weights) | !has_quadrature) rep(1,qrcens) else qrcens_weights,
+    qicens_weights = if (is.null(weights) | !has_quadrature) rep(1,qicens) else qicens_weights,
+    qdelay_weights = if (is.null(weights) | !has_quadrature) rep(1,qdelay) else qdelay_weights,
     
     s_epts_event = if (!has_quadrature) matrix(0,0,S) else s_epts_event,
     s_qpts_event = if (!has_quadrature) matrix(0,0,S) else s_qpts_event,

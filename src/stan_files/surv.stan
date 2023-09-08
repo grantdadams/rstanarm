@@ -468,6 +468,21 @@ data {
   matrix[qicens,S] s_qpts_icenu; // for rows with interval censoring
   matrix[qdelay,S] s_qpts_delay; // for rows with delayed entry
 
+  // likelihood weights, without quadrature
+  vector[nevent] event_weights;  // time of events
+  vector[nlcens] lcens_weights;  // time of left censoring
+  vector[nrcens] rcens_weights;  // time of right censoring
+  vector[nicens] icens_weights;  // time of lower limit for interval censoring
+  vector[ndelay] delay_weights;  // time of entry for delayed entry
+  
+    // likelihood weights, with quadrature
+  vector[Nevent] Nevent_weights;  // time of events
+  vector[qevent] qevent_weights;  // time of events
+  vector[qlcens] qlcens_weights;  // time of left censoring
+  vector[qrcens] qrcens_weights;  // time of right censoring
+  vector[qicens] qicens_weights;  // time of lower limit for interval censoring
+  vector[qdelay] qdelay_weights;  // time of entry for delayed entry
+
   // random effects structure, without quadrature
   //   nnz: number of non-zero elements in the Z matrix
   //   w: non-zero elements in the implicit Z matrix
@@ -867,20 +882,20 @@ model {
 
         // increment target with log-lik contributions
         if (type == 7) { // exponential AFT model
-          if (nevent > 0) target +=  exponentialAFT_log_haz (af_event);
-          if (nevent > 0) target +=  exponentialAFT_log_surv(caf_event);
-          if (nlcens > 0) target +=  exponentialAFT_log_cdf (caf_lcens);
-          if (nrcens > 0) target +=  exponentialAFT_log_surv(caf_rcens);
-          if (nicens > 0) target +=  exponentialAFT_log_cdf2(caf_icenl, caf_icenu);
-          if (ndelay > 0) target += -exponentialAFT_log_surv(caf_delay);
+          if (nevent > 0) target += event_weights .* exponentialAFT_log_haz (af_event);
+          if (nevent > 0) target += event_weights .* exponentialAFT_log_surv(caf_event);
+          if (nlcens > 0) target += lcens_weights .* exponentialAFT_log_cdf (caf_lcens);
+          if (nrcens > 0) target += rcens_weights .* exponentialAFT_log_surv(caf_rcens);
+          if (nicens > 0) target += icens_weights .* exponentialAFT_log_cdf2(caf_icenl, caf_icenu);
+          if (ndelay > 0) target += delay_weights .*-exponentialAFT_log_surv(caf_delay);
         } else if (type == 8) { // weibull AFT model
           real shape = coefs[1];
-          if (nevent > 0) target +=  weibullAFT_log_haz (af_event, caf_event, shape);
-          if (nevent > 0) target +=  weibullAFT_log_surv(caf_event, shape);
-          if (nlcens > 0) target +=  weibullAFT_log_cdf (caf_lcens, shape);
-          if (nrcens > 0) target +=  weibullAFT_log_surv(caf_rcens, shape);
-          if (nicens > 0) target +=  weibullAFT_log_cdf2(caf_icenl, caf_icenu, shape);
-          if (ndelay > 0) target += -weibullAFT_log_surv(caf_delay, shape);
+          if (nevent > 0) target += event_weights .* weibullAFT_log_haz (af_event, caf_event, shape);
+          if (nevent > 0) target += event_weights .* weibullAFT_log_surv(caf_event, shape);
+          if (nlcens > 0) target += lcens_weights .* weibullAFT_log_cdf (caf_lcens, shape);
+          if (nrcens > 0) target += rcens_weights .* weibullAFT_log_surv(caf_rcens, shape);
+          if (nicens > 0) target += icens_weights .* weibullAFT_log_cdf2(caf_icenl, caf_icenu, shape);
+          if (ndelay > 0) target += delay_weights .*-weibullAFT_log_surv(caf_delay, shape);
         }
 
       }
@@ -890,38 +905,38 @@ model {
 
         // evaluate log hazard and log survival
         if (type == 5) { // exponential model
-          if (nevent > 0) target +=  exponential_log_haz (eta_event);
-          if (nevent > 0) target +=  exponential_log_surv(eta_event, t_event);
-          if (nlcens > 0) target +=  exponential_log_cdf (eta_lcens, t_lcens);
-          if (nrcens > 0) target +=  exponential_log_surv(eta_rcens, t_rcens);
-          if (nicens > 0) target +=  exponential_log_cdf2(eta_icens, t_icenl, t_icenu);
-          if (ndelay > 0) target += -exponential_log_surv(eta_delay, t_delay);
+          if (nevent > 0) target += event_weights .* exponential_log_haz (eta_event);
+          if (nevent > 0) target += event_weights .* exponential_log_surv(eta_event, t_event);
+          if (nlcens > 0) target += lcens_weights .* exponential_log_cdf (eta_lcens, t_lcens);
+          if (nrcens > 0) target += rcens_weights .* exponential_log_surv(eta_rcens, t_rcens);
+          if (nicens > 0) target += icens_weights .* exponential_log_cdf2(eta_icens, t_icenl, t_icenu);
+          if (ndelay > 0) target += delay_weights .*-exponential_log_surv(eta_delay, t_delay);
         }
         else if (type == 1) { // weibull model
           real shape = coefs[1];
-          if (nevent > 0) target +=  weibull_log_haz (eta_event, t_event, shape);
-          if (nevent > 0) target +=  weibull_log_surv(eta_event, t_event, shape);
-          if (nlcens > 0) target +=  weibull_log_cdf (eta_lcens, t_lcens, shape);
-          if (nrcens > 0) target +=  weibull_log_surv(eta_rcens, t_rcens, shape);
-          if (nicens > 0) target +=  weibull_log_cdf2(eta_icens, t_icenl, t_icenu, shape);
-          if (ndelay > 0) target += -weibull_log_surv(eta_delay, t_delay, shape);
+          if (nevent > 0) target += event_weights .* weibull_log_haz (eta_event, t_event, shape);
+          if (nevent > 0) target += event_weights .* weibull_log_surv(eta_event, t_event, shape);
+          if (nlcens > 0) target += lcens_weights .* weibull_log_cdf (eta_lcens, t_lcens, shape);
+          if (nrcens > 0) target += rcens_weights .* weibull_log_surv(eta_rcens, t_rcens, shape);
+          if (nicens > 0) target += icens_weights .* weibull_log_cdf2(eta_icens, t_icenl, t_icenu, shape);
+          if (ndelay > 0) target += delay_weights .*-weibull_log_surv(eta_delay, t_delay, shape);
         }
         else if (type == 6) { // gompertz model
           real scale = coefs[1];
-          if (nevent > 0) target +=  gompertz_log_haz (eta_event, t_event, scale);
-          if (nevent > 0) target +=  gompertz_log_surv(eta_event, t_event, scale);
-          if (nlcens > 0) target +=  gompertz_log_cdf (eta_lcens, t_lcens, scale);
-          if (nrcens > 0) target +=  gompertz_log_surv(eta_rcens, t_rcens, scale);
-          if (nicens > 0) target +=  gompertz_log_cdf2(eta_icens, t_icenl, t_icenu, scale);
-          if (ndelay > 0) target += -gompertz_log_surv(eta_delay, t_delay, scale);
+          if (nevent > 0) target += event_weights .* gompertz_log_haz (eta_event, t_event, scale);
+          if (nevent > 0) target += event_weights .* gompertz_log_surv(eta_event, t_event, scale);
+          if (nlcens > 0) target += lcens_weights .* gompertz_log_cdf (eta_lcens, t_lcens, scale);
+          if (nrcens > 0) target += rcens_weights .* gompertz_log_surv(eta_rcens, t_rcens, scale);
+          if (nicens > 0) target += icens_weights .* gompertz_log_cdf2(eta_icens, t_icenl, t_icenu, scale);
+          if (ndelay > 0) target += delay_weights .*-gompertz_log_surv(eta_delay, t_delay, scale);
         }
         else if (type == 4) { // M-splines, on haz scale
-          if (nevent > 0) target +=  mspline_log_haz (eta_event,  basis_event, ms_coefs);
-          if (nevent > 0) target +=  mspline_log_surv(eta_event, ibasis_event, ms_coefs);
-          if (nlcens > 0) target +=  mspline_log_cdf (eta_lcens, ibasis_lcens, ms_coefs);
-          if (nrcens > 0) target +=  mspline_log_surv(eta_rcens, ibasis_rcens, ms_coefs);
-          if (nicens > 0) target +=  mspline_log_cdf2(eta_icens, ibasis_icenl, ibasis_icenu, ms_coefs);
-          if (ndelay > 0) target += -mspline_log_surv(eta_delay, ibasis_delay, ms_coefs);
+          if (nevent > 0) target += event_weights .* mspline_log_haz (eta_event,  basis_event, ms_coefs);
+          if (nevent > 0) target += event_weights .* mspline_log_surv(eta_event, ibasis_event, ms_coefs);
+          if (nlcens > 0) target += lcens_weights .* mspline_log_cdf (eta_lcens, ibasis_lcens, ms_coefs);
+          if (nrcens > 0) target += rcens_weights .* mspline_log_surv(eta_rcens, ibasis_rcens, ms_coefs);
+          if (nicens > 0) target += icens_weights .* mspline_log_cdf2(eta_icens, ibasis_icenl, ibasis_icenu, ms_coefs);
+          if (ndelay > 0) target += delay_weights .*-mspline_log_surv(eta_delay, ibasis_delay, ms_coefs);
         }
         else {
           reject("Bug found: invalid baseline hazard (without quadrature).");
@@ -1048,20 +1063,20 @@ model {
 
         // increment target with log-lik contributions
         if (type == 7) { // exponential AFT model
-          if (Nevent > 0) target +=  exponentialAFT_log_haz (af_event);
-          if (Nevent > 0) target +=  exponentialAFT_log_surv(caf_event);
-          if (Nlcens > 0) target +=  exponentialAFT_log_cdf (caf_lcens);
-          if (Nrcens > 0) target +=  exponentialAFT_log_surv(caf_rcens);
-          if (Nicens > 0) target +=  exponentialAFT_log_cdf2(caf_icenl, caf_icenu);
-          if (Ndelay > 0) target += -exponentialAFT_log_surv(caf_delay);
+          if (Nevent > 0) target += event_weights .* exponentialAFT_log_haz (af_event);
+          if (Nevent > 0) target += event_weights .* exponentialAFT_log_surv(caf_event);
+          if (Nlcens > 0) target += lcens_weights .* exponentialAFT_log_cdf (caf_lcens);
+          if (Nrcens > 0) target += rcens_weights .* exponentialAFT_log_surv(caf_rcens);
+          if (Nicens > 0) target += icens_weights .* exponentialAFT_log_cdf2(caf_icenl, caf_icenu);
+          if (Ndelay > 0) target += delay_weights .*-exponentialAFT_log_surv(caf_delay);
         } else if (type == 8) { // weibull AFT model
           real shape = coefs[1];
-          if (Nevent > 0) target +=  weibullAFT_log_haz (af_event, caf_event, shape);
-          if (Nevent > 0) target +=  weibullAFT_log_surv(caf_event, shape);
-          if (Nlcens > 0) target +=  weibullAFT_log_cdf (caf_lcens, shape);
-          if (Nrcens > 0) target +=  weibullAFT_log_surv(caf_rcens, shape);
-          if (Nicens > 0) target +=  weibullAFT_log_cdf2(caf_icenl, caf_icenu, shape);
-          if (Ndelay > 0) target += -weibullAFT_log_surv(caf_delay, shape);
+          if (Nevent > 0) target += event_weights .* weibullAFT_log_haz (af_event, caf_event, shape);
+          if (Nevent > 0) target += event_weights .* weibullAFT_log_surv(caf_event, shape);
+          if (Nlcens > 0) target += lcens_weights .* weibullAFT_log_cdf (caf_lcens, shape);
+          if (Nrcens > 0) target += rcens_weights .* weibullAFT_log_surv(caf_rcens, shape);
+          if (Nicens > 0) target += icens_weights .* weibullAFT_log_cdf2(caf_icenl, caf_icenu, shape);
+          if (Ndelay > 0) target += delay_weights .*-weibullAFT_log_surv(caf_delay, shape);
         }
 
       }
@@ -1130,13 +1145,13 @@ model {
         }
 
         // increment target with log-lik contributions for event submodel
-        if (Nevent > 0) target +=  lhaz_epts_event;
-        if (qevent > 0) target +=  quadrature_log_surv(qwts_event, lhaz_qpts_event);
-        if (qlcens > 0) target +=  quadrature_log_cdf (qwts_lcens, lhaz_qpts_lcens, qnodes, Nlcens);
-        if (qrcens > 0) target +=  quadrature_log_surv(qwts_rcens, lhaz_qpts_rcens);
-        if (qicens > 0) target +=  quadrature_log_cdf2(qwts_icenl, lhaz_qpts_icenl,
+        if (Nevent > 0) target += Nevent_weights .* lhaz_epts_event;
+        if (qevent > 0) target += qevent_weights .* quadrature_log_surv(qwts_event, lhaz_qpts_event);
+        if (qlcens > 0) target += qlcens_weights .* quadrature_log_cdf (qwts_lcens, lhaz_qpts_lcens, qnodes, Nlcens);
+        if (qrcens > 0) target += qrcens_weights .* quadrature_log_surv(qwts_rcens, lhaz_qpts_rcens);
+        if (qicens > 0) target += qicens_weights .* quadrature_log_cdf2(qwts_icenl, lhaz_qpts_icenl,
                                                        qwts_icenu, lhaz_qpts_icenu, qnodes, Nicens);
-        if (qdelay > 0) target += -quadrature_log_surv(qwts_delay, lhaz_qpts_delay);
+        if (qdelay > 0) target += qdelay_weights .* quadrature_log_surv(qwts_delay, lhaz_qpts_delay);
 
       }
 
